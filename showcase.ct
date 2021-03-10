@@ -1,0 +1,55 @@
+# import statement
+std import
+
+# variables
+std . print -> print
+
+# arithmetics
+5 3 * 4 + print
+
+# Strings
+"Hello world!" print
+"a" "b" ++ print
+
+# Arrays
+[ ] print
+[ 1 2 3 4 5 6 ] print
+[ 1 2 3 4 5 6 ] -> arr
+arr @ 2 print
+
+# Objects
+{ } print
+{
+    5 => a
+    "foo" => b
+    [ 1 2 3 ] => c
+    { 
+        4 => a
+    } => d
+} -> obj
+obj . d . a print
+
+# Anonymous function
+( dup * ) -> square
+
+# Function 1
+def square :
+    dup * ;
+
+# Function 2
+def square do
+    -> x
+    x x *
+end
+
+# Function 3
+var square : ( dup * ) ;
+
+# Application
+5 ( dup * ) !
+
+# Conditional
+True ( 5 ) ( 5 ) ?
+
+# For loop
+( print ) 5 times
