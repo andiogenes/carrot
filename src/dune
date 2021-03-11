@@ -1,0 +1,3 @@
+(executable
+ (name carrot)
+ (libraries str))
