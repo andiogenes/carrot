@@ -1,8 +1,3 @@
-{
-    5 => a
-    "foo" => b
-    [ 1 2 3 ] => c
-    { 
-        4 => a
-    } => d
-} . a print
+{ ( dup * print ) => sqr } -> std
+5 std . sqr !
+100 std . sqr !
