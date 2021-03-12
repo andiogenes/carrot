@@ -4,6 +4,7 @@ type value =
   | ArrMarker
   | ObjMarker
   | BlockMarker
+  | BindMarker of string
   | Array of value array
   | Ref of string * value
   | Object of (string, value) Hashtbl.t
@@ -18,6 +19,7 @@ let rec value_to_str v = match v with
   | ArrMarker -> raise Illegal_element
   | ObjMarker -> raise Illegal_element
   | BlockMarker -> raise Illegal_element
+  | BindMarker _ -> raise Illegal_element
   | Code _ -> raise Illegal_element
   | Block _ -> "<block>"
   | Array arr -> arr |> Array.map value_to_str |> Array.to_list |> String.concat " " |> Printf.sprintf "[ %s ]"
@@ -49,25 +51,34 @@ let exec cu =
         let _ = Stack.pop st in fold_string f (f acc x)
       | _ -> acc in
 
-  let rec fold_array acc =
-    if Stack.is_empty st then Array.of_list acc
-    else match Stack.pop st with
-      | ArrMarker -> Array.of_list acc
-      | x -> fold_array (x::acc) in
+  let rec fold_array acc = 
+    match Stack.pop st with
+    | ArrMarker -> Array.of_list acc
+    | x -> fold_array (x::acc) in
 
   let rec fold_object acc =
-    if Stack.is_empty st then acc
-    else match Stack.pop st with
-      | Ref (k, v) -> let _ = Hashtbl.replace acc k v in fold_object acc
-      | ObjMarker -> acc
-      | _ -> raise Illegal_element in
+    match Stack.pop st with
+    | Ref (k, v) -> let _ = Hashtbl.replace acc k v in fold_object acc
+    | ObjMarker -> acc
+    | _ -> raise Illegal_element in
 
   let rec fold_block acc =
-    if Stack.is_empty st then acc
-    else match Stack.pop st with
-      | BlockMarker -> acc
-      | Code x -> fold_block (x::acc)
-      | _ -> raise Illegal_element in
+    match Stack.pop st with
+    | BlockMarker -> acc
+    | Code x -> fold_block (x::acc)
+    | _ -> raise Illegal_element in
+
+  let rec bind_block acc = 
+    match Stack.pop st with
+    | BindMarker k -> let _ = Hashtbl.replace scope k (Block acc) in acc
+    | Code x -> bind_block (x::acc)
+    | _ -> raise Illegal_element in
+
+  let rec bind_eval arg_opt = 
+    match Stack.pop st with
+    | BindMarker k -> let _ = Option.iter (Hashtbl.replace scope k) arg_opt in arg_opt
+    | x when Option.is_none arg_opt -> bind_eval (Some x)
+    | _ -> raise Illegal_element in
 
   let rec exec_code code =
     let module C = Code in 
@@ -103,11 +114,15 @@ let exec cu =
       | C.Execute -> 
         let block = match Stack.pop st with Block x -> x | _ -> raise Illegal_element in
         List.iter exec_code block
+      | C.Def k -> let _ = Stack.push (BindMarker k) st in is_eval := false
+      | C.Var k -> Stack.push (BindMarker k) st
+      | C.DefVarEnd -> let _ = bind_eval None in ()
       | C.Identifier k -> let _ = (Hashtbl.find scope k |> Stack.push) st in ()
       | _ -> ()
     else match code with
       | C.BlockEnd -> 
         let block = fold_block [] in let _ = Stack.push (Block block) st in is_eval := true
+      | C.DefVarEnd -> let _ = bind_block [] in is_eval := true
       | x -> let _ = Stack.push (Code x) st in () in
 
   List.iter exec_code cu 
